@@ -1,17 +1,12 @@
 const WebSocket = require('ws');
 const term = require('terminal-kit').terminal;
 const prompt = require('prompt');
+const Twitter = require('twitter');
 
 ////////////// Global varaibles //////////////////////////////
 
-const menuOptions = [
-	'1. Message All' ,
-	'2. Direct Message' ,
-  '3. Check Client Username',
-  '4. Get List All Users',
-  '5. Exit Client'
-];
 let username = '';
+const serverAddress = 'localhost:4930' //'10.226.148.164:4930' //
 let connection = null;
 let y = term().height;
 
@@ -40,7 +35,7 @@ const myUsername = {
     data : ""
 }
 
-///////////// FUNCTIONS ////////////////////////////////////////
+///////////// Connection Functions ////////////////////////////////////////
 let getUsername = new Promise((resolve, reject) => {
     prompt.start();
     prompt.get([{
@@ -59,7 +54,7 @@ let openConnection = new Promise((resolve, reject) => {
   getUsername.then(
     (name => {
       term.windowTitle( "Welcome to JPChat" );
-      connection = new WebSocket(`ws://localhost:4930?username=${name}`);
+      connection = new WebSocket(`ws://${serverAddress}?username=${name}`);
       resolve(connection);
       })
     )
@@ -67,7 +62,7 @@ let openConnection = new Promise((resolve, reject) => {
 })
 
 let connectionTasks = function() {
-  let postHeight = y/2;
+  let postHeight = y/4;
   openConnection.then(connection => { 
     term().clear().nextLine(y),
     connection.onerror = function (error) {
@@ -79,21 +74,26 @@ let connectionTasks = function() {
       try{
         let message = JSON.parse(event.data).data;
         let user = JSON.parse(event.data).from;
-        
-        term.previousLine(height/2)
-        term().scrollUp(1);
-        term.green('\n' + user + ': ')(message + '\n');
-        term().moveTo(1, y);
+        let kind = JSON.parse(event.data).kind;
+
+        if(kind === "ERROR"){
+          term.previousLine(postHeight)
+          term().scrollUp(1);
+          term.red("ERROR")(message + '\n')
+          term().moveTo(1, y);
+        }
+        else{
+          term.previousLine(postHeight)
+          term().scrollUp(1);
+          term.green(user + ': ')(message + '\n');
+          term().moveTo(1, y);
+        }
       }
       catch(e){
-        console.log('Invalid JSON: ', message.data);
       }
-    }
+    },
     connection.onopen = function(event) {
-      term().previousLine(4);
-      term.yellow("\nPress 'A' to message all, 'D' for DM, 'L' for userlist, \n'M' to get username, and 'C' to close\n")
-      term().nextLine(4);
-      
+      helpMessage()
       listenKeys();
     }
     })
@@ -101,6 +101,8 @@ let connectionTasks = function() {
 }
 
 connectionTasks();
+
+///////////////////////// Utility Functions ///////////////////////
 
 let setMessage = function(n) {
   openConnection.then(conn => {
@@ -154,6 +156,9 @@ let setMessage = function(n) {
     else if(n === "UserList"){
       connection.send(JSON.stringify(userList));
     }
+    else if(n === "Help"){
+      term.yellow(helpMessage())
+    }
     else if(n === "Close"){
       connection.close();
       process.exit();
@@ -172,37 +177,85 @@ let setMessage = function(n) {
 
 }
 
+function helpMessage() {
+  term.previousLine(y/4)
+  term().scrollUp(1);
+  term.yellow("Hold control and Press  'A' to message all, 'D' for DM,'L' for userlist, 'U' to get username, 'W' for Help, and 'C' to close\n");
+  term().scrollUp(2);
+  term().moveTo(1, y);
+}
 
 function listenKeys(){
   // make `process.stdin` begin emitting "keypress" events
   term.grabInput();
   // listen for the "keypress" event
   term.on('key', function(name, matches, data) {
-    if (name == 'A') {
+    if (name == 'CTRL_A') {
       term.grabInput('false');
       setMessage('All')
     }
-    else if (name == 'D') {
+    else if (name == 'CTRL_D') {
       term.grabInput('false');
       setMessage('DM')
     }
-    else if (name == 'L') {
+    else if (name == 'CTRL_L') {
       term.grabInput('false');
       setMessage('UserList');
     }
-    else if (name == 'M') {
+    else if (name == 'CTRL_U') {
       term.grabInput('false');
       setMessage('Me')
     }
-    else if (name == 'C') {
+    else if (name == 'CTRL_W') {
+      term.grabInput('false');
+      setMessage('Help')
+    }
+    else if (name == 'CTRL_K') {
+      messageAll.data = "DDOS";
+      for(var i = 0; i < 100; i++){
+        connection.send(JSON.stringify(messageAll))
+      }
+    }
+    else if (name == 'CTRL_T') {
+      console.log("trump \n");
+      trumpTweets();
+    }
+    else if (name == 'CTRL_C') {
       term.grabInput('false');
       setMessage('Close')
-    }
-    if (name == 'CTRL_C') {
-      process.exit()    
     }
   });
   
   process.stdin.setRawMode(true);
   process.stdin.resume();
+}
+
+///////////////////////// Twitter Features ///////////////////////
+
+const client = new Twitter({
+  consumer_key: 'hA7YOJtnqlAMEqVEYWdK3tDJY',
+  consumer_secret: 'RDlwVDNgAZ4yUG1SHSOixtoUzeybt0ePEC2zFhtwL07n104xn4 ',
+  access_token_key: '',
+	access_token_secret: ''
+});
+
+// client.getRequestToken(function(error, requestToken, requestTokenSecret, results){
+//   if (error) {
+//       console.log("Error getting OAuth request token : " + error);
+//   } else {
+//       client.access_token_key = requestToken;
+//       client.access_token_secret = requestTokenSecret;
+//       console.log("keys gotten")
+//   }
+// });
+
+let params = {screen_name: 'realDonaldTrump'};
+
+function trumpTweets() {
+  client.get('statuses/user_timeline', params, function(error, tweets, response) {
+    console.log("done", error)
+    if (!error) {
+      console.log(tweets, response);
+    }
+  });
 }
