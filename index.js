@@ -6,10 +6,11 @@ const Twitter = require('twitter');
 ////////////// Global varaibles //////////////////////////////
 
 let username = '';
-const serverAddress = 'localhost:4930' //'10.226.148.164:4930' //
+const serverAddress = 'localhost:4930' //'10.226.148.164:4930'
 let connection = null;
 let y = term().height;
 
+// objects for each message type. can chage property's value as needed
 let messageAll = {
   from : `${username}`,
   to : "all",
@@ -36,21 +37,27 @@ const myUsername = {
 }
 
 ///////////// Connection Functions ////////////////////////////////////////
+
+// promise to get username before connecting
 let getUsername = new Promise((resolve, reject) => {
-    prompt.start();
-    prompt.get([{
-      name: "Name",
-      pattern: /^[?!0-9a-zA-Z]{3,10}$/,
-      message: 'Username must be between 3 and 10 alphanumeric characters',
-      required: true
-    }], function (err, result) {
-      username = result.Name;
-      resolve(result.Name);
-      reject(err);
-    });
+  // prompt asks for name and does validation. 
+  prompt.start();
+  prompt.get([{
+    name: "Name",
+    pattern: /^[?!0-9a-zA-Z]{3,10}$/,
+    message: 'Username must be between 3 and 10 alphanumeric characters',
+    required: true
+  }], function (err, result) {
+    // Sets input to global variable username and returns it
+    username = result.Name;
+    resolve(result.Name);
+    reject(err);
+  });
 })
 
+// promise object that resolves once connected
 let openConnection = new Promise((resolve, reject) => {
+  // waits for username to be set then connects to server
   getUsername.then(
     (name => {
       term.windowTitle( "Welcome to JPChat" );
@@ -58,9 +65,10 @@ let openConnection = new Promise((resolve, reject) => {
       resolve(connection);
       })
     )
-    .catch(err => {console.error(err)})
+    .catch(err => {console.log(err)})
 })
 
+// contains events from server
 let connectionTasks = function() {
   let postHeight = y/4;
   openConnection.then(connection => { 
@@ -71,11 +79,13 @@ let connectionTasks = function() {
       + 'connection or the server is down.')
     },
     connection.onmessage = function(event) {
+      // parses data from server and outputs it on terminal
       try{
         let message = JSON.parse(event.data).data;
         let user = JSON.parse(event.data).from;
         let kind = JSON.parse(event.data).kind;
 
+        // checks if message is an error
         if(kind === "ERROR"){
           term.previousLine(postHeight)
           term().scrollUp(1);
@@ -83,38 +93,48 @@ let connectionTasks = function() {
           term().moveTo(1, y);
         }
         else{
+          // shifts terminal up a line and writes message
+          // last 2 lines are never written in
           term.previousLine(postHeight)
           term().scrollUp(1);
+          term.eraseLine();
           term.green(user + ': ')(message + '\n');
           term().moveTo(1, y);
         }
       }
       catch(e){
+        console.log('Error', e)
       }
     },
     connection.onopen = function(event) {
+      // calls functions to print instructions and sets key listener
       helpMessage()
       listenKeys();
     }
     })
-  .catch(err => console.error(err))
+  .catch(err => console.log(err))
 }
 
 connectionTasks();
 
 ///////////////////////// Utility Functions ///////////////////////
 
+// sends different messages depending on what's pressed
+// Always waits until openConnection is resolved
 let setMessage = function(n) {
   openConnection.then(conn => {
     if(n === "All"){
       term.up(1)
       term('Enter message for all: \n');
       term.down(1)
+
+      // waits until user input is recived, then changes message data property
       grabInput.then(input => {
         messageAll.data = input;
 
         term.previousLine(1).eraseLine().nextLine(1).eraseLine();
 
+        // message is sent as a JSON string to server
         connection.send(JSON.stringify(messageAll));
       })      
     }
@@ -123,14 +143,16 @@ let setMessage = function(n) {
       term.up(1)
       term('Enter recipent: \n');
       term.down(1)
+
+      // waits until promise asking for recipent is resolved and changes message property to it
       grabInput.then(input => {
         messageUser.to = input;
-        term(messageUser.to)
+        
         term.up(1)
         term.eraseLine();
-        term(`Enter message for ${messageUser.to}: \n`);
+        term(`\nasEnter message for ${messageUser.to}: \n`);
         term.down(1)
-
+        // after creates new promise for message body
         new Promise((resolve, reject) => {
           term.eraseLine();
           let input = term.inputField({cursorPosition: 0}).promise;
@@ -139,32 +161,41 @@ let setMessage = function(n) {
           }
           reject('Invalid input');
       }).then(input2 => {
+          // once resolved changes object property 
           messageUser.data = input2;
-          term(messageUser.data)
       }).then(() => {
           term.previousLine(1)
           term.eraseDisplayBelow();
           term.nextLine(1);
 
+          // message is sent as a JSON string to server
+          // only user specified recives message
           connection.send(JSON.stringify(messageUser))
         })
       })
     }
     else if(n === "Me"){
+      // sends JSON string to server. No change is needed
+      // gets username
       connection.send(JSON.stringify(myUsername));
     }
     else if(n === "UserList"){
+      // sends JSON string to server. No change is needed
+      //gets list of users
       connection.send(JSON.stringify(userList));
     }
     else if(n === "Help"){
+      // prints instructions
       term.yellow(helpMessage())
     }
     else if(n === "Close"){
+      // closes connection and exits
       connection.close();
       process.exit();
     }
   })
 
+  // promise object that returns user input
   let grabInput = new Promise((resolve, reject) => {
     term.eraseLine();
     let input = term.inputField({cursorPosition: 0}).promise;
@@ -177,18 +208,20 @@ let setMessage = function(n) {
 
 }
 
+// prints intrsuctions on terminal screen in yellow
 function helpMessage() {
   term.previousLine(y/4)
   term().scrollUp(1);
-  term.yellow("Hold control and Press  'A' to message all, 'D' for DM,'L' for userlist, 'U' to get username, 'W' for Help, and 'C' to close\n");
+  term.yellow("Hold control and press  'A' to message all, 'D' for DM,'L' for "
+  + "userlist, 'U' to get username, 'W' for Help, 'T' for Trump's latest tweet, and 'C' to close\n");
   term().scrollUp(2);
   term().moveTo(1, y);
 }
 
 function listenKeys(){
-  // make `process.stdin` begin emitting "keypress" events
   term.grabInput();
   // listen for the "keypress" event
+  // calls function on specific keys, usually control + key
   term.on('key', function(name, matches, data) {
     if (name == 'CTRL_A') {
       term.grabInput('false');
@@ -217,7 +250,6 @@ function listenKeys(){
       }
     }
     else if (name == 'CTRL_T') {
-      console.log("trump \n");
       trumpTweets();
     }
     else if (name == 'CTRL_C') {
@@ -231,31 +263,32 @@ function listenKeys(){
 }
 
 ///////////////////////// Twitter Features ///////////////////////
-
+// creates twitter object of API
 const client = new Twitter({
-  consumer_key: 'hA7YOJtnqlAMEqVEYWdK3tDJY',
-  consumer_secret: 'RDlwVDNgAZ4yUG1SHSOixtoUzeybt0ePEC2zFhtwL07n104xn4 ',
-  access_token_key: '',
-	access_token_secret: ''
+  consumer_key: 'WPdr0KJJjz0EKRg8EWxuGXzeE',
+  consumer_secret: 'iXsQbM6FYFoDf78l7hdu7VkVMM7o2VX0KmU1nD89UsHlx0ulhj',
+  access_token_key: '331925463-0FLNTOF7Hg6hP93L8qpj5CmliPS7ixxFjEkaqHvM',
+	access_token_secret: 'Yz4Y0deMuygx9z16AlaxX58ed0ooOkU3EvyoFXj85J03B'
 });
 
-// client.getRequestToken(function(error, requestToken, requestTokenSecret, results){
-//   if (error) {
-//       console.log("Error getting OAuth request token : " + error);
-//   } else {
-//       client.access_token_key = requestToken;
-//       client.access_token_secret = requestTokenSecret;
-//       console.log("keys gotten")
-//   }
-// });
 
-let params = {screen_name: 'realDonaldTrump'};
+let params = {screen_name: 'realDonaldTrump', count: 1};
 
+// send get request to twitter to get trump's last tweet
 function trumpTweets() {
   client.get('statuses/user_timeline', params, function(error, tweets, response) {
-    console.log("done", error)
     if (!error) {
-      console.log(tweets, response);
+      // gets when tweet was sent and what it was
+      let createdAt = tweets[0].created_at;
+      let tweetbody = tweets[0].text;
+      
+      
+      // removes exta info in data time string
+      createdAt = createdAt.substring(0, createdAt.indexOf('+'))
+
+      // message is sent as a JSON string to server
+      messageAll.data = 'On ' +  createdAt + ' @realDonaldTrump tweeted "' + tweetbody + '"'
+      connection.send(JSON.stringify(messageAll))
     }
   });
 }
