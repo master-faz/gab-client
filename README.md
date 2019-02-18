@@ -14,7 +14,7 @@ Use `npm install` to get packages and dependencies.
 * [prompt](https://github.com/flatiron/prompt) - A beautiful command-line prompt for Node.js.
 * [twitter](https://github.com/desmondmorris/node-twitter) - An asynchronous client library for the Twitter REST and Streaming API's.
 
-##Key Features
+## Key Features
 
 * Validates Username before connecting
 * Press control key + letter to send message/command
