@@ -2,11 +2,12 @@ const WebSocket = require('ws');
 const term = require('terminal-kit').terminal;
 const prompt = require('prompt');
 const Twitter = require('twitter');
+const style = require('./styles')
 
 ////////////// Global varaibles //////////////////////////////
 
 let username = '';
-const serverAddress = 'localhost:4930' //'10.226.148.164:4930'
+const serverAddress = '10.226.71.146:4930'  //'localhost:4930' //
 let connection = null;
 let y = term().height;
 
@@ -92,14 +93,14 @@ let connectionTasks = function() {
           term.red("ERROR")(message + '\n')
           term().moveTo(1, y);
         }
-        else{
-          // shifts terminal up a line and writes message
-          // last 2 lines are never written in
+        else if(user === "GABServer"){
           term.previousLine(postHeight)
           term().scrollUp(1);
-          term.eraseLine();
-          term.green(user + ': ')(message + '\n');
+          term.yellow(user + ': ')(message + '\n');
           term().moveTo(1, y);
+        }
+        else{
+          let styledMsg = checkRegex(message, user, kind);
         }
       }
       catch(e){
@@ -208,6 +209,52 @@ let setMessage = function(n) {
 
 }
 
+// checks incoming message for expressions in JSON file
+function checkRegex(msg, from, kind) {
+
+  // loops through expressions in JSON file and creates regex
+  for(let i in style) {
+    const exprssion = style[i].expression
+    const regex = new RegExp(exprssion)
+
+    if (regex.test(msg)) {
+      const s = style[i].style;
+
+      // splits string based on if expressions is found
+      let splitString = msg.split(exprssion);
+
+      term.previousLine(y/4)
+      term().scrollUp(1);
+      term.eraseLine();
+
+      if(kind == 'direct'){
+        term.blue(from + ': ')(splitString[0])[s](exprssion)(splitString[1])('\n')
+      }
+      else{
+        term.green(from + ': ')(splitString[0])[s](exprssion)(splitString[1])('\n')
+      }
+      term().moveTo(1, y);
+      
+      return
+    }
+  }
+  // shifts terminal up a line and writes message
+  // last 2 lines are never written in
+  term.previousLine(y/4)
+  term().scrollUp(1);
+  term.eraseLine();
+
+  if(kind == 'direct'){
+    term.blue(from + ': ')(msg + '\n');
+  }
+  else{
+    term.green(from + ': ')(msg + '\n');
+  }
+  term().moveTo(1, y);
+  
+  return  
+}
+
 // prints intrsuctions on terminal screen in yellow
 function helpMessage() {
   term.previousLine(y/4)
@@ -218,6 +265,7 @@ function helpMessage() {
   term().moveTo(1, y);
 }
 
+// calls specific function based on key press
 function listenKeys(){
   term.grabInput();
   // listen for the "keypress" event
@@ -244,7 +292,7 @@ function listenKeys(){
       setMessage('Help')
     }
     else if (name == 'CTRL_K') {
-      messageAll.data = "DDOS";
+      messageAll.data = "BILLIE";
       for(var i = 0; i < 100; i++){
         connection.send(JSON.stringify(messageAll))
       }
@@ -263,6 +311,7 @@ function listenKeys(){
 }
 
 ///////////////////////// Twitter Features ///////////////////////
+
 // creates twitter object of API
 const client = new Twitter({
   consumer_key: 'WPdr0KJJjz0EKRg8EWxuGXzeE',
