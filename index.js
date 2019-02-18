@@ -256,7 +256,7 @@ function helpMessage() {
   term.previousLine(y / 4)
   term().scrollUp(1);
   term.yellow("Hold control and press  'A' to message all, 'D' for DM,'L' for " +
-    "userlist, 'U' to get username, 'W' for Help, 'T' for Trump's latest tweet, and 'C' to close\n");
+    "userlist, 'U' to get username, 'W' for Help, 'T' for Trump's latest tweet, 'K' to spam message and 'C' to close\n");
   term().scrollUp(2);
   term().moveTo(1, y);
 }
@@ -283,7 +283,7 @@ function listenKeys() {
       term.grabInput('false');
       setMessage('Help')
     } else if (name == 'CTRL_K') {
-      messageAll.data = "BILLIE";
+      messageAll.data = "DDOS";
       for (var i = 0; i < 100; i++) {
         connection.send(JSON.stringify(messageAll))
       }

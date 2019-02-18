@@ -14,6 +14,19 @@ Use `npm install` to get packages and dependencies.
 * [prompt](https://github.com/flatiron/prompt) - A beautiful command-line prompt for Node.js.
 * [twitter](https://github.com/desmondmorris/node-twitter) - An asynchronous client library for the Twitter REST and Streaming API's.
 
+##Key Features
+
+* Validates Username before connecting
+* Press control key + letter to send message/command
+* Color coded messages
+    * Messages from server are in Yellow
+    * Direct messages are in Blue
+    * Server wide messages are in Green
+* Extra Features:
+    * Can send Trump's latest tweet to entire server
+    * Stylized specific words automatically
+    * Can Spam server by sending a message 100x
+
 ## Versioning
 
 The version of this server provided is purely for class purposes.
